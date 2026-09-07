@@ -1,0 +1,51 @@
+error[E0277]: the trait bound `WrongRhs: Jac` is not satisfied
+  --> $DIR/defer-normalization-obligations-unsatisfied-issue-162323.rs:29:16
+   |
+LL |     type Rhs = WrongRhs;
+   |                ^^^^^^^^ unsatisfied trait bound
+   |
+help: the trait `Jac` is not implemented for `WrongRhs`
+  --> $DIR/defer-normalization-obligations-unsatisfied-issue-162323.rs:7:1
+   |
+LL | struct WrongRhs;
+   | ^^^^^^^^^^^^^^^
+help: the trait `Jac` is implemented for `MyRhs`
+  --> $DIR/defer-normalization-obligations-unsatisfied-issue-162323.rs:14:1
+   |
+LL | impl Jac for MyRhs {
+   | ^^^^^^^^^^^^^^^^^^
+note: required by a bound in `EqnsRef::Rhs`
+  --> $DIR/defer-normalization-obligations-unsatisfied-issue-162323.rs:23:19
+   |
+LL |     type Rhs: Jac<V = Input>;
+   |                   ^^^^^^^^^ required by this bound in `EqnsRef::Rhs`
+
+error[E0277]: the trait bound `WrongRhs: Jac` is not satisfied
+  --> $DIR/defer-normalization-obligations-unsatisfied-issue-162323.rs:36:15
+   |
+LL | fn inner() -> impl for<'a> EqnsRef<'a, Rhs: Jac<V = Input>> {
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+   |
+help: the trait `Jac` is not implemented for `WrongRhs`
+  --> $DIR/defer-normalization-obligations-unsatisfied-issue-162323.rs:7:1
+   |
+LL | struct WrongRhs;
+   | ^^^^^^^^^^^^^^^
+help: the trait `Jac` is implemented for `MyRhs`
+  --> $DIR/defer-normalization-obligations-unsatisfied-issue-162323.rs:14:1
+   |
+LL | impl Jac for MyRhs {
+   | ^^^^^^^^^^^^^^^^^^
+
+error[E0308]: mismatched types
+  --> $DIR/defer-normalization-obligations-unsatisfied-issue-162323.rs:32:9
+   |
+LL |     fn rhs(&'a self) -> Self::Rhs {
+   |                         --------- expected `WrongRhs` because of return type
+LL |         MyRhs
+   |         ^^^^^ expected `WrongRhs`, found `MyRhs`
+
+error: aborting due to 3 previous errors
+
+Some errors have detailed explanations: E0277, E0308.
+For more information about an error, try `rustc --explain E0277`.
