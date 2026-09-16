@@ -301,6 +301,16 @@ where
 {
     /// Try to merge multiple possible ways to prove a goal, if that is not possible returns `None`.
     ///
+    /// Candidate merging assumes that candidate-source-specific preferences
+    /// have already been handled before candidate sets reach this point. for
+    /// example trait candidate selection handles specialization and builtin
+    /// versus impl preferences before merging. here we only merge candidates
+    /// based on their canonical responses.
+    ///
+    /// An always applicable candidate can be selected early when it does not
+    /// introduce any inference variables or external constraints since the
+    /// remaining candidates cannot change the final response.
+    ///
     /// In this case we tend to flounder and return ambiguity by calling `[EvalCtxt::flounder]`.
     #[instrument(level = "trace", skip(self), ret)]
     fn try_merge_candidates(
