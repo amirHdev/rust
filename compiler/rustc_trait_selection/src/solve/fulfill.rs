@@ -369,7 +369,6 @@ where
                         } else {
                             all_pending_trackable = false;
                         }
-
                         true
                     }
                 }
