@@ -97,9 +97,10 @@ pub(crate) type UnificationTable<'a, 'tcx, T> = ut::UnificationTable<
 pub struct InferCtxtInner<'tcx> {
     undo_log: InferCtxtUndoLogs<'tcx>,
 
-    /// Tracks inference changes that may unblock stalled fulfillment goals
+    /// Tracks changes that may unblock stalled fulfillment goals.
     ///
-    /// Even values are clean, the first relevant inference change makes the value odd and the next
+    /// This includes relevant inference changes and opaque type changes.
+    /// Even values are clean, the first relevant change makes the value odd and the next
     /// fulfillment pass advances it to the next even value
     /// Snapshots save and restore this with the inference state
     stalled_goal_generation: Option<u64>,
@@ -231,6 +232,26 @@ impl<'tcx> InferCtxtInner<'tcx> {
     }
 
     #[inline]
+    fn register_opaque_type(
+        &mut self,
+        key: OpaqueTypeKey<'tcx>,
+        hidden_type: ProvisionalHiddenType<'tcx>,
+    ) -> Option<Ty<'tcx>> {
+        self.bump_stalled_goal_generation();
+        self.opaque_types().register(key, hidden_type)
+    }
+
+    #[inline]
+    fn add_duplicate_opaque_type(
+        &mut self,
+        key: OpaqueTypeKey<'tcx>,
+        hidden_type: ProvisionalHiddenType<'tcx>,
+    ) {
+        self.bump_stalled_goal_generation();
+        self.opaque_types().add_duplicate(key, hidden_type);
+    }
+
+    #[inline]
     fn int_unification_table(&mut self) -> UnificationTable<'_, 'tcx, ty::IntVid> {
         self.int_unification_storage.with_log(&mut self.undo_log)
     }
@@ -255,9 +276,9 @@ impl<'tcx> InferCtxtInner<'tcx> {
         self.stalled_goal_generation
     }
 
-    /// mark the generation dirty after an inference change
+    /// Mark the generation dirty after a change which may unblock a stalled goal.
     ///
-    /// once it's dirty we don't need to update it again until fulfillment
+    /// Once it's dirty we don't need to update it again until fulfillment
     /// starts another pass
     #[inline]
     fn bump_stalled_goal_generation(&mut self) {
@@ -1222,7 +1243,13 @@ impl<'tcx> InferCtxt<'tcx> {
 
     #[instrument(level = "debug", skip(self), ret)]
     pub fn take_opaque_types(&self) -> Vec<(OpaqueTypeKey<'tcx>, ProvisionalHiddenType<'tcx>)> {
-        self.inner.borrow_mut().opaque_type_storage.take_opaque_types().collect()
+        let inner = &mut *self.inner.borrow_mut();
+
+        if !inner.opaque_type_storage.is_empty() {
+            inner.bump_stalled_goal_generation();
+        }
+
+        inner.opaque_type_storage.take_opaque_types().collect()
     }
 
     #[instrument(level = "debug", skip(self), ret)]

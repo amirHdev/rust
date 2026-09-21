@@ -9,8 +9,7 @@ use rustc_infer::traits::{
 use rustc_middle::ty::{self, TyCtxt, TypeVisitableExt, TypingMode};
 use rustc_next_trait_solver::solve::fast_path::compute_goal_fast_path;
 use rustc_next_trait_solver::solve::{
-    GoalEvaluation, GoalStalledOn, GoalStalledOnOpaques, HasChanged, SolverDelegateEvalExt as _,
-    StalledOnCoroutines,
+    GoalEvaluation, GoalStalledOn, HasChanged, SolverDelegateEvalExt as _, StalledOnCoroutines,
 };
 use thin_vec::ThinVec;
 use tracing::instrument;
@@ -118,10 +117,6 @@ impl<'tcx, E: 'tcx> FulfillmentCtxt<'tcx, E> {
         }
     }
 
-    fn goal_is_known_to_be_stalled(stalled_on: &GoalStalledOn<TyCtxt<'tcx>>) -> bool {
-        matches!(stalled_on.opaques, GoalStalledOnOpaques::No)
-    }
-
     fn inspect_evaluated_obligation(
         infcx: &InferCtxt<'tcx>,
         obligation: &PredicateObligation<'tcx>,
@@ -160,9 +155,6 @@ where
                 Certainty::Maybe(_) => {
                     let stalled_on = stalled_on
                         .expect("fast-path ambiguity must include stalled-on information");
-                    self.all_goals_known_to_be_stalled &=
-                        Self::goal_is_known_to_be_stalled(&stalled_on);
-
                     self.obligations.register(obligation, Some(stalled_on));
                 }
             }
@@ -220,8 +212,6 @@ where
                 if let Some(stalled_on) = opt_stalled_on
                     && delegate.goal_remains_stalled(stalled_on)
                 {
-                    all_goals_known_to_be_stalled &= Self::goal_is_known_to_be_stalled(stalled_on);
-
                     return true;
                 }
 
@@ -298,8 +288,7 @@ where
                         // running until a fixpoint.
                         *opt_stalled_on = stalled_on;
 
-                        all_goals_known_to_be_stalled &=
-                            opt_stalled_on.as_ref().is_some_and(Self::goal_is_known_to_be_stalled);
+                        all_goals_known_to_be_stalled &= opt_stalled_on.is_some();
 
                         true
                     }
